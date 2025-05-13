@@ -1,34 +1,30 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
 import type { Libro } from '../types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { librosService } from '../service/api';
 
 const LibrosList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: libros, isLoading, error } = useQuery<Libro[], Error>(
-    'libros',
-    librosService.getAll
-  );
+  const { data: libros = [], isLoading, error } = useQuery<Libro[], Error>({
+    queryKey: ['libros'],
+    queryFn: librosService.getAll,
+  });
 
-  const { data: searchResults } = useQuery<Libro[], Error>(
-    ['libros-search', searchQuery],
-    () => librosService.search(searchQuery),
-    {
-      enabled: searchQuery.length > 0,
-    }
-  );
+  const { data: searchResults = [] } = useQuery<Libro[], Error>({
+    queryKey: ['libros-search', searchQuery],
+    queryFn: () => librosService.search(searchQuery),
+    enabled: searchQuery.length > 0,
+  });
 
-  const deleteLibroMutation = useMutation<void, Error, number>(
-    (id: number) => librosService.delete(id),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('libros');
-      },
-    }
-  );
+  const deleteLibroMutation = useMutation<void, Error, number>({
+    mutationFn: (id: number) => librosService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['libros'] });
+    },
+  });
 
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este libro?')) {
@@ -68,7 +64,7 @@ const LibrosList: React.FC = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {displayLibros?.map((libro: Libro) => (
+        {displayLibros.map((libro: Libro) => (
           <div key={libro.id} className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-xl font-semibold mb-2">{libro.titulo}</h3>
             <p className="text-gray-600 mb-2">
@@ -87,16 +83,16 @@ const LibrosList: React.FC = () => {
               <button
                 onClick={() => handleDelete(libro.id)}
                 className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm"
-                disabled={deleteLibroMutation.isLoading}
+                disabled={deleteLibroMutation.isPending}
               >
-                {deleteLibroMutation.isLoading ? 'Eliminando...' : 'Eliminar'}
+                {deleteLibroMutation.isPending ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {displayLibros?.length === 0 && (
+      {displayLibros.length === 0 && (
         <div className="text-center text-gray-500 mt-8">
           No se encontraron libros.
         </div>
